@@ -558,6 +558,91 @@ function Index() {
   };
 
   const minesRemaining = difficulty.mines - flagCount;
+  // ─── Resonance Engine ───
+type EchoValue = string | null;
+
+const computeResonance = (board: Board, rows: number, cols: number): EchoValue[][] => {
+  const echoes: EchoValue[][] = Array.from({ length: rows }, () => Array(cols).fill(null));
+  
+  const getNeighbors = (r: number, c: number) => {
+    const res: { r: number; c: number }[] = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) res.push({ r: nr, c: nc });
+      }
+    }
+    return res;
+  };
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = board[r][c];
+      if (cell.revealed || cell.mark === "flag") continue;
+
+      const revealedNeighbors = getNeighbors(r, c).filter(
+        (n) => board[n.r][n.c].revealed && board[n.r][n.c].adj > 0
+      );
+      if (revealedNeighbors.length < 2) continue;
+
+      const constraints: { min: number; max: number }[] = [];
+
+      for (const n of revealedNeighbors) {
+        const nCell = board[n.r][n.c];
+        const nNeighbors = getNeighbors(n.r, n.c);
+        const flaggedAround = nNeighbors.filter((x) => board[x.r][x.c].mark === "flag").length;
+        const hiddenAround = nNeighbors.filter(
+          (x) => !board[x.r][x.c].revealed && board[x.r][x.c].mark !== "flag"
+        );
+        const remaining = nCell.adj - flaggedAround;
+        if (hiddenAround.length === 0) continue;
+
+        const isThisCellHiddenNeighbor = nNeighbors.some((x) => x.r === r && x.c === c);
+        if (!isThisCellHiddenNeighbor) continue;
+
+        const minContrib = Math.max(0, remaining - (hiddenAround.length - 1));
+        const maxContrib = Math.min(1, remaining);
+        constraints.push({ min: minContrib, max: maxContrib });
+      }
+
+      if (constraints.length < 2) continue;
+
+      const overallMin = Math.max(...constraints.map((x) => x.min));
+      const overallMax = Math.min(...constraints.map((x) => x.max));
+
+      if (overallMin === overallMax) {
+        if (overallMax === 1) echoes[r][c] = "💣";
+        else if (overallMax === 0) echoes[r][c] = "0";
+        else echoes[r][c] = String(overallMax);
+      }
+    }
+  }
+  return echoes;
+};
+
+const [resonanceEnabled, setResonanceEnabled] = useState(() => {
+  try {
+    return localStorage.getItem("mindsweeper:resonance") !== "false";
+  } catch {
+    return true;
+  }
+});
+
+const toggleResonance = () => {
+  setResonanceEnabled((prev) => {
+    const next = !prev;
+    try {
+      localStorage.setItem("mindsweeper:resonance", String(next));
+    } catch {}
+    return next;
+  });
+};
+
+const echoes = useMemo(() => {
+  if (!resonanceEnabled) return null;
+  return computeResonance(board, difficulty.rows, difficulty.cols);
+}, [board, difficulty, resonanceEnabled]);
   const face = status === "won" ? "😎" : status === "lost" ? "💀" : status === "playing" ? "😐" : "🙂";
 
   return (

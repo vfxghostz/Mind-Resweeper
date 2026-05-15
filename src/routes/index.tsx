@@ -286,6 +286,24 @@ function CellView({
       }}
     >
       {cell.adj || ""}
+{echoes && echoes[r][c] && !cell.revealed && cell.mark === "none" && (
+  <span
+    style={{
+      position: "absolute",
+      bottom: "1px",
+      right: "2px",
+      fontSize: "calc(var(--cell) * 0.35)",
+      color: echoes[r][c] === "💣" ? "#ff3355" : echoes[r][c] === "0" ? "#4dd0e1" : "#4dd0e1",
+      opacity: 0.85,
+      fontStyle: "italic",
+      textShadow: echoes[r][c] === "💣" ? "0 0 6px #ff3355" : "0 0 6px #4dd0e1",
+      pointerEvents: "none",
+      animation: "echoFadeIn 0.15s ease-out",
+    }}
+  >
+    {echoes[r][c]}
+  </span>
+)}
     </div>
   );
 }
